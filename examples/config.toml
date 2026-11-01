@@ -1,0 +1,21 @@
+# ~/.config/firetower/config.toml (or $FIRETOWER_CONFIG). Everything is
+# optional; with no file at all, lookouts go to main/main and boards show
+# this machine.
+
+# Where a lookout goes when it names no district or tower.
+default_district = "main"
+default_tower = "main"
+
+[board]
+port = 7480
+# ui = "~/my-firetower-page"   # your own page instead of the built-in one
+# local = false                # show only the sources, not this machine
+
+# Another machine: any command that prints `firetower watch --json`. Over
+# ssh, name the binary by its path from the home folder: a non-interactive
+# ssh session often has a bare PATH.
+[[source]]
+name = "work-mac"
+command = ["ssh", "-o", "BatchMode=yes", "-o", "ServerAliveInterval=30", "work-mac", ".local/bin/firetower", "watch", "--json"]
+district = "work"                  # optional: fold all of it into one district
+act = ["ssh", "-o", "BatchMode=yes", "work-mac", ".local/bin/firetower"]   # optional: lets seen/done/rm reach it

@@ -1,0 +1,81 @@
+#!/bin/sh
+# Builds a room for the Firetower: the binary built from a copy of the
+# project, a state dir seeded with lookouts in every state (two districts,
+# a second machine folded in as a source, one out of contact), and the board
+# on the room's web port. Nothing calls out: the sources are local commands.
+set -e
+APP=$ADMINISTRATION_APP
+mkdir -p "$APP/src"
+# A copy, without the mise.toml (an untrusted copy would stop mise); the Go
+# version comes from the environment instead.
+(cd "$ADMINISTRATION_MAIN" && tar cf - --exclude=./mise.toml --exclude=./build --exclude=./.administration .) | (cd "$APP/src" && tar xf -)
+cd "$APP/src"
+export MISE_GO_VERSION=1.26 CGO_ENABLED=0
+if command -v go >/dev/null 2>&1; then GO=go; else GO="mise exec go@1.26 -- go"; fi
+$GO build -o "$APP/firetower" ./cmd/firetower
+
+B=$APP/firetower
+export FIRETOWER_DIR=$APP/state FIRETOWER_CONFIG=$APP/config.toml
+OTHER=$APP/other-machine
+ago() { date -u -v-"$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "-$(echo "$1" | sed 's/H/ hours/;s/M/ minutes/')" +%Y-%m-%dT%H:%M:%SZ; }
+
+cat > "$FIRETOWER_CONFIG" <<TOML
+[board]
+port = $ADMINISTRATION_PORT_WEB
+
+[[source]]
+name = "work-mac"
+command = ["env", "FIRETOWER_DIR=$OTHER", "FIRETOWER_CONFIG=/nonexistent", "$B", "watch", "--json"]
+district = "work"
+act = ["env", "FIRETOWER_DIR=$OTHER", "FIRETOWER_CONFIG=/nonexistent", "$B"]
+
+[[source]]
+name = "old-mac"
+command = ["env", "FIRETOWER_DIR=$APP/old-machine", "FIRETOWER_CONFIG=/nonexistent", "$B", "watch", "--json", "--once"]
+
+[[source]]
+name = "lab-box"
+command = ["sh", "-c", "echo 'ssh: connect to host lab-box port 22: Connection refused' >&2; exit 255"]
+TOML
+
+# A log for a lookout's link to open.
+mkdir -p "$APP/logs"
+printf '%s\n' "2026-10-31 09:00 export started" "2026-10-31 09:04 wrote 1,204 rows" "2026-10-31 09:04 export finished" > "$APP/logs/export.log"
+
+# This machine: two districts, every state.
+FIRETOWER_NOW=$(ago 3H) $B set website/checkout/deploy-landed green "Live, build a1b2c3d." --value a1b2c3d --label "Deploy lands" --link https://example.com/deploys/123 --source "crontinental:deploy-landed"
+$B set website/checkout/deploy-landed green "Live, build a1b2c3d." --value a1b2c3d --next 30m
+$B set website/admin/keepalive yellow "Response 2.8s, over the 2s budget." --value slow --next 10m --label "Admin keepalive"
+$B set website/questionnaire/intake red "Form submit returns 500." --value 500 --next 10m --label "Intake form"
+FIRETOWER_NOW=$(ago 5H) $B set website/admin/backup green "Backed up 2.1 GB." --next 1h --label "Nightly backup" --link "$APP/logs/export.log"
+$B set app/signup/otp yellow "SMS delivery slow (40s)." --value slow --next 15m --label "OTP delivery"
+$B seen app/signup/otp
+FIRETOWER_NOW=$(ago 2H) $B expect app/checkout/stripe-webhooks --next 30m --label "Stripe webhooks"
+$B expect app/checkout/refunds --next 2h --label "Refund queue"
+$B set app/checkout/order-sync green "Synced 12 orders." --next 30m --label "Order sync" --link "$APP/logs/export.log"
+FIRETOWER_NOW=$(ago 2H) $B set app/checkout/hotfix green "Fix landed." --until 1h --label "Hotfix lands"
+$B set app/checkout/old-fix green "Fix landed." --label "Old fix"
+$B done app/checkout/old-fix "Landed at 4:12 pm."
+$B set app/signup/captcha green "A label long enough to wrap: the captcha provider answered every challenge within budget across all regions." --label "Captcha provider health across every region we serve"
+
+# The other machine, folded into one district.
+FIRETOWER_DIR=$OTHER FIRETOWER_CONFIG=/nonexistent $B set example-shop/orders/stuck yellow "3 orders waiting over an hour." --label "Stuck orders" --value 3 --next 15m
+FIRETOWER_DIR=$OTHER FIRETOWER_CONFIG=/nonexistent $B set example-shop/site/up green "200 in 180ms." --label "Site up" --next 5m
+
+# A machine that answered once and went away: its lookouts stay, marked out of contact.
+FIRETOWER_DIR=$APP/old-machine FIRETOWER_CONFIG=/nonexistent $B set reports/weekly/digest green "Digest sent to 40 people." --label "Weekly digest" --next 7d
+
+# A report nobody can read: it must show as fire, never as nothing.
+mkdir -p "$FIRETOWER_DIR/app/signup"
+printf '{"name": "broken", "status": ' > "$FIRETOWER_DIR/app/signup/webhook-relay.json"
+
+# The board, as a person runs it.
+"$B" board --port "$ADMINISTRATION_PORT_WEB" >"$APP/board.log" 2>&1 </dev/null &
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  curl -fsS -o /dev/null "http://127.0.0.1:$ADMINISTRATION_PORT_WEB/" 2>/dev/null && break
+  sleep 0.5
+done
+KEY=$(cat "$FIRETOWER_DIR/.board-key")
+cat > "$ADMINISTRATION_MANIFEST" <<JSON
+{"url": "http://127.0.0.1:$ADMINISTRATION_PORT_WEB/?key=$KEY", "origins": [], "data": "seed", "roles": {}}
+JSON

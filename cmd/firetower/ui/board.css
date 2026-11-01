@@ -1,0 +1,180 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --ink: #1f2328;
+  --muted: #59636e;
+  --faint: #656d76;
+  --line: #e1e4e8;
+  --hover: #f3f4f6;
+  --clear: #1a7f37;
+  --smoke: #875a00;
+  --fire: #cf222e;
+  --noword: #8250df;
+  --waiting: #8c959f;
+  --down: #8c959f;
+  --chip: #eef1f4;
+  --focus: #0969da;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117;
+    --panel: #151b23;
+    --ink: #e6edf3;
+    --muted: #9198a1;
+    --faint: #8b949e;
+    --line: #262c36;
+    --hover: #1b222c;
+    --clear: #3fb950;
+    --smoke: #d29922;
+    --fire: #f85149;
+    --noword: #a371f7;
+    --waiting: #6e7681;
+    --down: #6e7681;
+    --chip: #212830;
+    --focus: #4493f8;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --panel: #151b23; --ink: #e6edf3; --muted: #9198a1; --faint: #8b949e;
+  --line: #262c36; --hover: #1b222c; --clear: #3fb950; --smoke: #d29922; --fire: #f85149;
+  --noword: #a371f7; --waiting: #6e7681; --down: #6e7681; --chip: #212830; --focus: #4493f8;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 16px 24px;
+}
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+.top {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 0 12px; background: var(--bg); z-index: 1;
+}
+/* Only a wide, tall window keeps the header in view; anywhere smaller it
+   would take a fifth of the screen. */
+@media (min-width: 900px) and (min-height: 600px) {
+  .top { position: sticky; top: 0; }
+  html { scroll-padding-top: 64px; }
+}
+.glyph { width: 22px; height: 22px; color: var(--muted); flex: none; }
+.glyph .beacon { fill: var(--worst, var(--waiting)); }
+h1 { font-size: 15px; font-weight: 650; margin: 0; letter-spacing: .01em; }
+.summary { margin: 0; color: var(--muted); flex: 1 1 auto; min-width: 0; }
+.summary b { font-weight: 600; }
+.updated { margin: 0; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.banner {
+  border: 1px solid var(--line); border-left: 3px solid var(--noword); background: var(--panel);
+  border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; color: var(--muted);
+}
+.banner b { color: var(--ink); font-weight: 600; }
+
+main { display: grid; gap: 14px; }
+.district { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.district > h2 {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px 8px;
+  font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.tower + .tower { border-top: 1px solid var(--line); }
+.tower > .tower-name {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 14px 4px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.tower > .tower-name .count { color: var(--faint); font-weight: 400; font-size: 12px; }
+.solo .tower:first-child > .tower-name { padding-top: 12px; }
+
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--waiting); }
+.dot.green { background: var(--clear); }
+.dot.yellow { background: var(--smoke); }
+.dot.red { background: var(--fire); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fire) 22%, transparent); }
+.dot.stale { background: transparent; border: 2px solid var(--noword); }
+.dot.lost { background: transparent; border: 2px dotted var(--noword); }
+.dot.waiting { background: transparent; border: 2px dashed var(--waiting); }
+.dot.done { background: var(--down); }
+/* A seen smoke or fire keeps its colour, as a ring: known, not gone. */
+.dot.seen { background: transparent; box-shadow: none; border: 2px solid var(--smoke); }
+.dot.red.seen { border-color: var(--fire); }
+
+ul.rows { list-style: none; margin: 0; padding: 2px 0 6px; }
+.row {
+  display: grid; grid-template-columns: 9px 1fr; column-gap: 10px; align-items: start;
+  padding: 7px 14px; position: relative;
+}
+.row:hover, .row:focus-within { background: var(--hover); }
+.row .dot { margin-top: 5px; }
+.row .main { min-width: 0; }
+.row .line { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.row .line .label { flex: 0 1 auto; max-width: 45%; }
+.row .label { font-weight: 600; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; cursor: default; }
+.row .label:focus { outline: none; }
+.row .label:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.row a.label { cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.row a.label:hover { text-decoration-color: currentColor; }
+/* Messages are at most 200 characters: shown in full, never cut. */
+.row .msg { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.row .meta { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 1px; overflow-wrap: anywhere; }
+.row .meta .word { font-weight: 600; }
+.row.red .meta .word { color: var(--fire); }
+.row.yellow .meta .word { color: var(--smoke); }
+.row.stale .meta .word, .row.lost .meta .word { color: var(--noword); }
+.row.green .meta .word { color: var(--clear); }
+.row.seen .word { color: var(--muted); font-weight: 500; }
+.row.done .label, .row.done .msg { color: var(--faint); }
+
+.chip { font-size: 11px; color: var(--muted); background: var(--chip); border-radius: 999px; padding: 0 7px; overflow-wrap: anywhere; min-width: 0; }
+.note.info { color: var(--muted); }
+.note { color: var(--fire); font-size: 12px; margin-top: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* A row's buttons. With a mouse on a wide enough screen they keep a column
+   of their own, shown on hover or focus, so they never cover a message. On
+   a touch screen or a narrow window they sit under the row, behind its ⋯
+   button, each big enough for a thumb. */
+.acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.more {
+  display: none; font: inherit; font-size: 16px; line-height: 1; color: var(--muted);
+  background: none; border: 1px solid transparent; border-radius: 6px; padding: 0 8px; cursor: pointer;
+}
+@media (hover: hover) and (min-width: 521px) {
+  .row { grid-template-columns: 9px 1fr auto; }
+  /* Faded, not hidden: a hidden button can't take focus, and a keyboard
+     user must be able to Tab to every row's buttons. */
+  .acts { grid-column: 3; grid-row: 1; opacity: 0; }
+  .row:hover .acts, .row:focus-within .acts, .row.open .acts { opacity: 1; }
+}
+@media (hover: none), (max-width: 520px) {
+  .row { grid-template-columns: 9px 1fr auto; }
+  .more { display: block; grid-column: 3; grid-row: 1; min-width: 44px; min-height: 44px; margin: -10px -8px 0 0; }
+  .more[aria-expanded="true"] { color: var(--ink); border-color: var(--line); }
+  .acts { grid-column: 2 / 4; display: none; margin-top: 8px; gap: 10px; }
+  .row.open .acts { display: flex; }
+  .row .acts button { min-height: 44px; padding: 6px 16px; font-size: 14px; }
+  .row .main { cursor: pointer; }
+}
+.acts button {
+  font: inherit; font-size: 12px; color: var(--muted); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; padding: 2px 9px; min-height: 26px; cursor: pointer;
+}
+.acts button:disabled { opacity: .5; cursor: progress; }
+.acts button:hover { color: var(--ink); border-color: var(--faint); }
+.acts button.armed { color: var(--fire); border-color: var(--fire); }
+
+.empty { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; color: var(--muted); }
+.empty h2 { margin: 0 0 6px; font-size: 15px; color: var(--ink); }
+.empty pre { background: var(--chip); color: var(--ink); padding: 8px 10px; border-radius: 6px; overflow-x: auto; font-size: 12.5px; }
+
+@media (max-width: 720px) {
+  .row .line { flex-wrap: wrap; }
+  .row .line .label { max-width: 100%; }
+}
+@media (max-width: 520px) {
+  .banner { padding: 6px 10px; font-size: 13px; }
+  .row .line { flex-wrap: wrap; }
+  .row .line .label { max-width: 100%; }
+}

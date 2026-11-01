@@ -1,0 +1,11 @@
+/* Colours for the Waybar module, by the worst state anywhere (its class).
+   Add to ~/.config/waybar/style.css. */
+#custom-firetower { padding: 0 8px; }
+#custom-firetower.green   { color: #3fb950; }
+#custom-firetower.yellow  { color: #d29922; }
+#custom-firetower.red     { color: #f85149; }
+#custom-firetower.stale,
+#custom-firetower.lost    { color: #a371f7; }
+#custom-firetower.waiting,
+#custom-firetower.done,
+#custom-firetower.none    { color: #8b949e; }

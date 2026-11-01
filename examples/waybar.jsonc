@@ -1,0 +1,11 @@
+// A Waybar module (and so Omarchy's bar): add "custom/firetower" to one of
+// modules-left/center/right in ~/.config/waybar/config.jsonc, and this block
+// beside the other modules. The text is a dot and the count; the tooltip has
+// every district, tower and lookout. Click opens the board.
+"custom/firetower": {
+  "exec": "~/.local/bin/firetower bar --format waybar",
+  "return-type": "json",
+  "interval": 30,
+  "tooltip": true,
+  "on-click": "~/.local/bin/firetower board --open"
+}

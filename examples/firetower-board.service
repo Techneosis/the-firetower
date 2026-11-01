@@ -1,0 +1,13 @@
+# Start the board at login (Linux, systemd). Save as
+# ~/.config/systemd/user/firetower-board.service, then:
+#   systemctl --user enable --now firetower-board
+# Open it with: firetower board --open (it finds the one already running).
+[Unit]
+Description=The Firetower's board
+
+[Service]
+ExecStart=%h/.local/bin/firetower board
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

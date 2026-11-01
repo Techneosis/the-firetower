@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Start the board at login (macOS). Replace HOME_DIR with your home folder,
+     save as ~/Library/LaunchAgents/com.example.firetower-board.plist, then:
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.example.firetower-board.plist
+     Open it with: firetower board --open (it finds the one already running). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.example.firetower-board</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>HOME_DIR/.local/bin/firetower</string>
+    <string>board</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardErrorPath</key><string>/tmp/firetower-board.log</string>
+</dict>
+</plist>

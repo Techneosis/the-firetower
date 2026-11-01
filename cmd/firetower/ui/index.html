@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Firetower</title>
+<link rel="icon" id="icon" href="data:,">
+<link rel="stylesheet" href="board.css">
+<script src="board.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 7 7h2l-2 15h3l1-6h2l1 6h3L15 7h2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="5.2" r="1.3" class="beacon"/></svg>
+  <h1 tabindex="-1">Firetower</h1>
+  <p class="summary" id="summary" aria-live="polite">Looking…</p>
+  <p class="updated" id="updated"></p>
+</header>
+<p id="announce" class="sr-only" aria-live="polite"></p>
+<noscript><p class="banner">The board needs JavaScript to show the lookouts. <code>firetower ls</code> shows them in a terminal.</p></noscript>
+<div id="banners"></div>
+<main id="board"></main>
+<template id="empty">
+  <section class="empty">
+    <h2>No lookouts yet</h2>
+    <p>A check reports one line, and it shows up here:</p>
+    <pre tabindex="0">firetower set shop/deploy green "Live." --next 30m</pre>
+    <p>Or wrap a check that knows nothing about the Firetower:</p>
+    <pre tabindex="0">firetower run shop/up --next 7m -- curl -fsS -o /dev/null https://example.com/</pre>
+  </section>
+</template>
+</body>
+</html>
