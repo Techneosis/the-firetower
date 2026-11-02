@@ -113,6 +113,13 @@ func (p *post) refreshLocal() {
 		return
 	}
 	vs := localViews(p.dir, now(), false)
+	shown := vs[:0]
+	for _, v := range vs {
+		if p.cfg.Board.shows(v.District, v.Tower) {
+			shown = append(shown, v)
+		}
+	}
+	vs = shown
 	p.mu.Lock()
 	changed := !sameViews(p.local, vs)
 	p.local = vs
@@ -253,7 +260,15 @@ func (p *post) apply(r *remote, e Event) bool {
 			break
 		}
 		v := *e.Lookout
-		r.views[v.ID] = v
+		// A tower this board doesn't show is dropped as it comes in, so
+		// nothing (the boards, the feed, the counts, act) ever sees it.
+		// Matched on the names the board will show (a name that isn't one
+		// shows as "unnamed"), before any folding.
+		if d, t := placeNames(v); r.src.shows(d, t) {
+			r.views[v.ID] = v
+		} else {
+			delete(r.views, v.ID)
+		}
 	case "gone":
 		delete(r.views, e.ID)
 	case "sync":
@@ -301,6 +316,19 @@ func (p *post) state() State {
 	return st
 }
 
+// placeNames is a feed lookout's district and tower as a board shows them:
+// a name that isn't one is "unnamed".
+func placeNames(v View) (district, tower string) {
+	district, tower = v.District, v.Tower
+	if checkName("district", district) != nil {
+		district = "unnamed"
+	}
+	if checkName("tower", tower) != nil {
+		tower = "unnamed"
+	}
+	return district, tower
+}
+
 func placeRemote(r *remote, v View) View {
 	v.Origin = r.src.Name
 	v.ID = r.src.Name + ":" + cleanText(v.ID, 200)
@@ -314,12 +342,7 @@ func placeRemote(r *remote, v View) View {
 	v.Value = cleanText(v.Value, maxText)
 	v.Source = cleanText(v.Source, 120)
 	v.Link = cleanText(v.Link, 2000)
-	if checkName("district", v.District) != nil {
-		v.District = "unnamed"
-	}
-	if checkName("tower", v.Tower) != nil {
-		v.Tower = "unnamed"
-	}
+	v.District, v.Tower = placeNames(v)
 	if r.src.District != "" {
 		v.Tag, v.District = v.District, r.src.District
 	}
@@ -366,6 +389,11 @@ func (p *post) act(verb, id string) error {
 			if err := checkName("name", x); err != nil {
 				return err
 			}
+		}
+		// A lookout this board doesn't show can't be acted on from it,
+		// here as for a source's.
+		if !p.cfg.showLocal() || !p.cfg.Board.shows(parts[0], parts[1]) {
+			return fmt.Errorf("no lookout %q", id)
 		}
 		var err error
 		switch verb {

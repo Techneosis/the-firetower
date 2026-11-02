@@ -390,8 +390,57 @@ class Hostile(Firetower):
     def test_broken_config_doesnt_stop_a_report(self):
         self.config.write_text("this is = = not toml")
         p = self.ft("set", "x", "green")
-        self.assertIn("default tower", p.stderr)
+        self.assertIn("goes to main/main", p.stderr)
         self.assertIn("main/main/x", self.ls())
+
+    def test_a_boards_bad_setting_doesnt_move_reports(self):
+        # A slip in a board-only setting keeps the file's defaults: the
+        # reports land where they always did, and it's said every time.
+        for slip in ('[board]\nport = 99999\n', '[board]\nhide = ["Inbox"]\n',
+                     '[[source]]\nname = "x"\ncommand = ["true"]\nkeep = ["a/"]\n', 'colour = "red"\n',
+                     '[board]\nport = "7480"\n', '[board]\nhide = "inbox/*"\n', '[board]\nlocal = "no"\n'):
+            with self.subTest(slip=slip):
+                self.config.write_text('default_district = "site"\ndefault_tower = "admin"\n' + slip)
+                p = self.ft("set", "x", "green")
+                self.assertIn("reports still go to its defaults", p.stderr)
+                self.assertIn("site/admin/x", self.ls())
+                p = self.ft("seen", "x", ok=False)  # a lookup warns too, without claiming to place anything
+                self.assertIn("boards won't start", p.stderr)
+                self.assertNotIn("goes to", p.stderr)
+                self.ft("rm", "site/admin/x")
+
+    def test_a_bad_default_is_lost_alone(self):
+        self.config.write_text('default_district = "Site"\ndefault_tower = "admin"\n')
+        p = self.ft("set", "x", "green")
+        self.assertIn("goes to main/admin", p.stderr)
+        self.assertIn("main/admin/x", self.ls())
+        # A bad tower alone leaves the district known: rm --tower still works there.
+        self.config.write_text('default_district = "site"\ndefault_tower = "bad Tower"\n')
+        p = self.ft("set", "y", "green")
+        self.assertIn("goes to site/main", p.stderr)
+        self.ft("set", "site/b/z", "green")
+        self.ft("rm", "--tower", "b")
+        self.assertEqual(set(self.ls()), {"main/admin/x", "site/main/y"})
+
+    def test_rm_a_tower_wont_guess_the_district(self):
+        self.ft("set", "a/b/x", "green")
+        self.ft("set", "main/b/y", "green")
+        self.config.write_text("this is = = not toml")
+        p = self.ft("rm", "--tower", "b", ok=False)
+        self.assertIn("--district", p.stderr)
+        self.assertEqual(set(self.ls()), {"a/b/x", "main/b/y"})
+        self.ft("rm", "--district", "a", "--tower", "b")
+        self.assertEqual(set(self.ls()), {"main/b/y"})
+        # $FIRETOWER_DISTRICT names it, as for every other command.
+        self.ft("set", "a/b/x", "green")
+        self.ft("rm", "--tower", "b", FIRETOWER_DISTRICT="a")
+        self.assertEqual(set(self.ls()), {"main/b/y"})
+        # A bad board setting keeps the default district, and says so.
+        self.config.write_text('default_district = "a"\n[board]\nport = 99999\n')
+        self.ft("set", "a/b/z", "green")
+        p = self.ft("rm", "--tower", "b")
+        self.assertIn("default district, a, still holds", p.stderr)
+        self.assertEqual(set(self.ls()), {"main/b/y"})
 
     def test_unwritable_state_dir_is_an_error_not_silence(self):
         self.dir.mkdir()

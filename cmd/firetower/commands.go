@@ -37,15 +37,25 @@ func with(base map[string]bool, more ...string) map[string]bool {
 // if none does, it goes to the defaults (or isn't found, when it must exist).
 func where(arg string, f flags, mustExist bool) (district, tower, name string, err error) {
 	cfg, cerr := loadConfig()
-	if cerr != nil && !mustExist {
-		fmt.Fprintf(os.Stderr, "firetower: %v (reporting to the default tower)\n", cerr)
-	}
 	dd, dt := cfg.DefaultDistrict, cfg.DefaultTower
 	if v := os.Getenv("FIRETOWER_DISTRICT"); v != "" {
 		dd = v
 	}
 	if v := os.Getenv("FIRETOWER_TOWER"); v != "" {
 		dt = v
+	}
+	if cerr != nil {
+		// Said every time, not only at a terminal: a scheduler's log is
+		// where a broken config is found.
+		switch {
+		case mustExist:
+			// A lookup looks a bare name up; it places nothing.
+			fmt.Fprintf(os.Stderr, "firetower: %v (boards won't start until it's fixed)\n", cerr)
+		case cfg.defaultsLost():
+			fmt.Fprintf(os.Stderr, "firetower: %v (not all its defaults can be used: a bare name goes to %s/%s)\n", cerr, dd, dt)
+		default:
+			fmt.Fprintf(os.Stderr, "firetower: %v (reports still go to its defaults; boards won't start until it's fixed)\n", cerr)
+		}
 	}
 	parts := strings.Split(arg, "/")
 	for _, p := range parts {
@@ -474,10 +484,21 @@ func cmdRm(args []string) error {
 		}
 		return rmLookout(d, t, n)
 	}
-	cfg, _ := loadConfig()
+	// The district, as every other command finds it: --district, then
+	// $FIRETOWER_DISTRICT, then the config's default.
+	cfg, cerr := loadConfig()
 	district := cfg.DefaultDistrict
-	if f.has("district") {
+	switch {
+	case f.has("district"):
 		district = f.get("district")
+	case os.Getenv("FIRETOWER_DISTRICT") != "":
+		district = os.Getenv("FIRETOWER_DISTRICT")
+	case cfg.districtLost:
+		// Removing a whole tower from a district guessed at is how the
+		// wrong lookouts go: say so and stop.
+		return fmt.Errorf("%v\nso the default district isn't known; fix the config, or name the district with --district", cerr)
+	case cerr != nil:
+		fmt.Fprintf(os.Stderr, "firetower: %v (the default district, %s, still holds)\n", cerr, district)
 	}
 	if err := checkName("district", district); err != nil {
 		return err

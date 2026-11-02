@@ -10,6 +10,8 @@ default_tower = "main"
 port = 7480
 # ui = "~/my-firetower-page"   # your own page instead of the built-in one
 # local = false                # show only the sources, not this machine
+# hide = ["scratch/*"]         # this machine's towers to leave out: globs on district/tower, or a tower
+# keep = ["scratch/build"]     # back in, even if hidden (keep wins over hide)
 
 # Another machine: any command that prints `firetower watch --json`. Over
 # ssh, name the binary by its path from the home folder: a non-interactive
@@ -19,3 +21,5 @@ name = "work-mac"
 command = ["ssh", "-o", "BatchMode=yes", "-o", "ServerAliveInterval=30", "work-mac", ".local/bin/firetower", "watch", "--json"]
 district = "work"                  # optional: fold all of it into one district
 act = ["ssh", "-o", "BatchMode=yes", "work-mac", ".local/bin/firetower"]   # optional: lets seen/done/rm reach it
+# hide = ["inbox/*"]               # optional: its towers to leave out, by its own names
+# keep = ["inbox/alice"]           # optional: back in, even if hidden (keep wins over hide)

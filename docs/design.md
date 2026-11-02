@@ -264,8 +264,8 @@ giving up the rest.
 - **Your own board entirely:** read the files, or run `firetower watch
   --json` (locally or over ssh) and draw what you like.
 
-**The board's API**, for a custom page: `GET /api/state` (every lookout, as
-`ls --json` prints them), `GET /api/feed` (the same, as server-sent events),
+**The board's API**, for a custom page: `GET /api/state` (every lookout the
+board shows, as `ls --json` prints them), `GET /api/feed` (the same, as server-sent events),
 `POST /api/seen|done|rm` with `{"id": "district/tower/name"}`, and `GET
 /api/link?id=…` (a lookout's `link` when it is a local file: shown read-only,
 never run).
@@ -306,6 +306,8 @@ name = "work-mac"
 command = ["ssh", "work-mac", "firetower", "watch", "--json"]
 district = "work"        # optional: put everything from it in one district
 act = ["ssh", "work-mac", "firetower"]   # optional: lets seen/done/rm reach it
+hide = ["inbox/*"]       # optional: towers this board leaves out
+keep = ["inbox/alice"]   # optional: back in, even if hidden
 ```
 
 A source is any command that prints `watch --json`. Without `district`, its
@@ -316,6 +318,33 @@ re-sends every 60s), shows "out of contact" on its lookouts instead of
 looking clear, and the board reconnects with a backoff. Both boards read the
 same sources. (One district per machine is then just a config choice, not
 something the tool assumes.)
+
+`hide` and `keep` choose which of a source's towers this board shows, for a
+shared machine that reports for everyone on it: each board keeps its own,
+and the machine never needs to know who is looking. A lookout shows unless
+its tower matches `hide`, and `keep` wins over `hide` (so `keep` alone does
+nothing). Patterns are shell globs (`[!x]` negates, as in the shell) against
+`district/tower`, or the tower alone when there's no `/`, matched on the
+names the board would show (a feed's name that isn't one is `unnamed`),
+before any folding. A hidden lookout is dropped as the feed comes in, so it
+reaches nothing: not the board, the bar, the counts, a district's colour,
+the API or the buttons. The same two settings under `[board]` apply to this
+machine's own lookouts, and the buttons refuse those too. It's what a board
+shows, not who may read what: anyone on that machine can still `firetower
+ls` there. A pattern that could never match a name (a capital, a space, an
+empty side of the `/`) or can't be read is a config error, like a bad port:
+the boards refuse to start, rather than quietly showing everything.
+
+A broken config never stops a report, and a slip in a board's settings
+never moves one. A file with a bad setting (a port, a pattern, an unknown
+key, a value of the wrong type) keeps its `default_district` and
+`default_tower` for reports: when the whole file won't decode, the two are
+read on their own. Only a file that isn't TOML, or a bad default itself,
+leaves `main`, each default on its own. Every command that reads the config
+for a lookout says so on stderr each time, not only at a terminal, since a
+scheduler's log is where it's found. `rm --tower` takes its district the way
+every command does (`--district`, `$FIRETOWER_DISTRICT`, the default), and
+refuses rather than guess when only a lost default would name it.
 
 ### 5. For agents
 

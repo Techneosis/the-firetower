@@ -225,7 +225,7 @@ draw what you like.
 
 | | |
 |---|---|
-| `GET /api/state` | every lookout, as `ls --json` prints them, and the sources |
+| `GET /api/state` | every lookout the board shows (less any `hide`), as `ls --json` prints them, and the sources |
 | `GET /api/feed` | the same, as server-sent events, on every change |
 | `POST /api/seen`, `/api/done`, `/api/rm` | `{"id": "district/tower/name"}`, as JSON |
 | `GET /api/link?id=…` | a local lookout's linked file, as plain text (the last 256 KB) |
@@ -256,6 +256,32 @@ command = ["ssh", "-o", "BatchMode=yes", "work-mac", ".local/bin/firetower", "wa
 district = "work"   # optional: fold all of it into one district
 act = ["ssh", "-o", "BatchMode=yes", "work-mac", ".local/bin/firetower"]   # optional: lets the buttons reach it
 ```
+
+A shared machine that reports for everyone on it can be trimmed to what's
+yours. A lookout shows unless its tower matches `hide`, and `keep` wins over
+`hide` (so `keep` alone does nothing). Patterns are shell globs (`*`, `?`,
+`[abc]`, `[!abc]`) against `district/tower`, or the tower alone with no `/`,
+on the names as that machine reports them, before any `district` folding:
+
+```toml
+[[source]]
+name = "shared-box"
+command = ["ssh", "-o", "BatchMode=yes", "shared-box", ".local/bin/firetower", "watch", "--json"]
+hide = ["inbox/*"]       # everyone's inbox towers...
+keep = ["inbox/alice"]   # ...except this one
+```
+
+A hidden lookout is left out of everything on this board: the list, the bar,
+the counts, the colours, the API and the buttons. The same two settings under
+`[board]` trim this machine's own. It's what your board shows, not who may
+read what: `firetower ls` and `watch` still show everything. A pattern that
+could never match a name (a capital, a space, an empty side of the `/`) is an
+error like any other in the config: the board and the bar refuse to start
+until it's fixed. Reports still land in your `default_district` and
+`default_tower`, with a warning in their output, whatever the slip (a bad
+value, a wrong type, an unknown key). Only a file that isn't TOML at all, or
+a bad default itself, sends them to `main` instead; and `rm --tower` without
+`--district` then refuses rather than guess the district.
 
 A source that fails, or goes quiet for two minutes, is **out of contact**:
 its lookouts stay, marked, and the board keeps trying. It never looks clear.

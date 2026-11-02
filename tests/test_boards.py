@@ -21,7 +21,7 @@ def free_port():
     return port
 
 
-class Sources(Firetower):
+class Remote(Firetower):
     """A second state dir stands in for another machine."""
 
     def setUp(self):
@@ -44,6 +44,29 @@ class Sources(Firetower):
     def ids(self, s):
         return [v["id"] for d in s["districts"] for t in d["towers"] for v in t["lookouts"]]
 
+    def start_board(self):
+        """A board on this config; returns req(method, path, body) -> (status, data)."""
+        port = free_port()
+        env = self.env()
+        env.pop("FIRETOWER_NOW")
+        proc = subprocess.Popen([BIN, "board", "--port", str(port)], env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.addCleanup(lambda: (proc.terminate(), proc.wait(5), proc.stdout.close()))
+        self.assertIn("is up", proc.stdout.readline())
+        key = (self.dir / ".board-key").read_text().strip()
+
+        def req(method, path, body=None):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=20)
+            c.request(method, path, body=json.dumps(body) if body is not None else None,
+                      headers={"Host": f"127.0.0.1:{port}", "Authorization": f"Bearer {key}"})
+            r = c.getresponse()
+            data = r.read().decode()
+            c.close()
+            return r.status, data
+        return req
+
+
+class Sources(Remote):
     def test_source_as_is(self):
         self.ft("set", "app/signup/otp", "green")
         self.on_other("set", "website/checkout/deploy", "red", "boom")
@@ -113,7 +136,143 @@ class Sources(Firetower):
         self.assertEqual(json.loads(p.stdout)["class"], "red")
 
 
+class Shown(Remote):
+    """hide and keep: which of a source's towers (or this machine's) a board shows."""
+
+    def setUp(self):
+        super().setUp()
+        for who, state in [("alice", "green"), ("bob", "red"), ("carol", "yellow")]:
+            self.on_other("set", f"inbox/{who}/new", state)
+        self.on_other("set", "site/web/up", "green")
+
+    def shown(self, **opts):
+        self.write_config(name="shared", command=[*self.remote_cmd, "watch", "--json"], **opts)
+        return self.bar()
+
+    def test_hide_only(self):
+        s = self.shown(hide=["inbox/*"])
+        self.assertEqual(self.ids(s), ["shared:site/web/up"])
+
+    def test_keep_wins_over_hide(self):
+        s = self.shown(hide=["inbox/*"], keep=["inbox/alice"])
+        self.assertEqual(sorted(self.ids(s)), ["shared:inbox/alice/new", "shared:site/web/up"])
+
+    def test_keep_without_hide_changes_nothing(self):
+        self.assertEqual(len(self.ids(self.shown(keep=["inbox/alice"]))), 4)
+
+    def test_pattern_without_a_slash_is_the_tower(self):
+        s = self.shown(hide=["bob", "c*"])
+        self.assertEqual(sorted(self.ids(s)), ["shared:inbox/alice/new", "shared:site/web/up"])
+
+    def test_hidden_fire_doesnt_colour_its_district(self):
+        s = self.shown(hide=["inbox/bob"])
+        self.assertEqual(s["worst"], "yellow")
+        self.assertNotIn("red", [d["worst"] for d in s["districts"]])
+        s = self.shown(hide=["inbox/*"], district="box")  # matched on the source's own names, before folding
+        self.assertEqual((s["worst"], self.ids(s)), ("green", ["shared:site/web/up"]))
+
+    def test_shell_negation(self):
+        s = self.shown(hide=["inbox/[!b]*"])  # the shell's [!...], not only Go's [^...]
+        self.assertEqual(sorted(self.ids(s)), ["shared:inbox/bob/new", "shared:site/web/up"])
+
+    def test_matched_on_the_names_shown(self):
+        # A feed's name that isn't one shows as "unnamed", and is hidden by that name.
+        feed = "\n".join([
+            json.dumps({"type": "hello", "v": 1}),
+            json.dumps({"type": "lookout", "lookout": {"id": "inbox/x/bob/new", "district": "inbox/x",
+                                                       "tower": "bob", "name": "new", "state": "red"}}),
+            json.dumps({"type": "lookout", "lookout": {"id": "a/b/c", "district": "a", "tower": "b",
+                                                       "name": "c", "state": "green"}}),
+            json.dumps({"type": "sync", "ids": ["inbox/x/bob/new", "a/b/c"]}),
+        ])
+        self.write_config(name="odd", command=["printf", "%s\\n", feed], hide=["unnamed/*"])
+        s = self.bar()
+        self.assertEqual((self.ids(s), s["worst"]), (["odd:a/b/c"], "green"))
+
+    def test_hidden_lookouts_cant_be_acted_on(self):
+        self.write_config(name="shared", command=[*self.remote_cmd, "watch", "--json"],
+                          act=self.remote_cmd, hide=["inbox/bob"])
+        req = self.start_board()
+        for _ in range(50):  # until the source's first sync
+            st = json.loads(req("GET", "/api/state")[1])
+            if st["sources"][0]["contact"] == "ok":
+                break
+            time.sleep(0.2)
+        ids = [v["id"] for v in st["lookouts"]]
+        self.assertIn("shared:inbox/carol/new", ids)
+        self.assertNotIn("shared:inbox/bob/new", ids)
+        self.assertNotEqual(req("POST", "/api/seen", {"id": "shared:inbox/bob/new"})[0], 200)
+        self.assertEqual(req("POST", "/api/seen", {"id": "shared:inbox/carol/new"})[0], 200)
+
+    def test_this_machines_hidden_lookouts_cant_be_acted_on(self):
+        self.ft("set", "inbox/alice/new", "red")
+        self.ft("set", "site/web/up", "yellow")
+        self.config.write_text('[board]\nhide = ["inbox/*"]\n')
+        req = self.start_board()
+        for verb in ("seen", "done", "rm", "expect"):
+            self.assertNotEqual(req("POST", f"/api/{verb}", {"id": "inbox/alice/new"})[0], 200, verb)
+        self.assertNotEqual(req("POST", "/api/expect", {"id": "inbox/new/one"})[0], 200)
+        self.assertEqual(self.one("inbox/alice/new")["state"], "red")
+        self.assertNotIn("inbox/new/one", self.ls())
+        self.assertEqual(req("POST", "/api/seen", {"id": "site/web/up"})[0], 200)
+        self.config.write_text('[board]\nlocal = false\n')
+        req = self.start_board()
+        for verb in ("seen", "done", "rm", "expect"):
+            self.assertNotEqual(req("POST", f"/api/{verb}", {"id": "site/web/up"})[0], 200, verb)
+        self.assertEqual(self.one("site/web/up")["state"], "yellow")  # not done, not removed
+
+    def test_bad_patterns_refuse_to_start(self):
+        bad = ["[a", "a[", "*[", "[]a]", "a/b/c", "", "inbox/", "/bob", "Bob", " bob", "inbox\\*",
+               "_*", ".x", "-x", "a!b", "!", "^x", "a" * 65]
+        for pat in bad:
+            for field in ("hide", "keep"):
+                for where in ("source", "board"):
+                    with self.subTest(pat=pat, field=field, where=where):
+                        if where == "source":
+                            self.write_config(name="shared", command=[*self.remote_cmd, "watch", "--json"], **{field: [pat]})
+                            named = 'source "shared"'
+                        else:
+                            self.config.write_text(f"[board]\n{field} = {json.dumps([pat])}\n")
+                            named = "[board]"
+                        p = self.ft("bar", ok=False)
+                        self.assertIn(f"{named}'s {field} pattern {json.dumps(pat)}", p.stdout)
+                        p = self.ft("board", "--port", str(free_port()), ok=False)
+                        self.assertIn("pattern", p.stdout + p.stderr)
+
+    def test_wrong_types_refuse_and_empty_lists_are_nothing(self):
+        self.config.write_text('[board]\nhide = "inbox/*"\n')
+        self.ft("bar", ok=False)
+        self.write_config(name="shared", command=[*self.remote_cmd, "watch", "--json"], hide=[], keep=[])
+        self.assertEqual(len(self.ids(self.bar())), 4)
+
+    def test_misspelt_setting_refuses(self):
+        self.write_config(name="shared", command=[*self.remote_cmd, "watch", "--json"], hid=["inbox/*"])
+        self.assertIn("unknown setting", self.ft("bar", ok=False).stdout)
+
+    def test_this_machines_own_towers(self):
+        self.ft("set", "inbox/alice/new", "red")
+        self.ft("set", "inbox/bob/new", "yellow")
+        self.ft("set", "site/web/up", "green")
+        self.config.write_text('[board]\nhide = ["inbox/*"]\n')
+        s = self.bar()
+        self.assertEqual((self.ids(s), s["worst"]), (["site/web/up"], "green"))
+        self.config.write_text('[board]\nhide = ["inbox/*"]\nkeep = ["bob"]\n')
+        s = self.bar()
+        self.assertEqual((self.ids(s), s["worst"]), (["inbox/bob/new", "site/web/up"], "yellow"))
+        # ls is the files, not a board: it still shows everything.
+        self.assertIn("inbox/alice/new", self.ft("ls").stdout)
+
+
 class Examples(Firetower):
+    def test_example_settings_are_valid_turned_on(self):
+        # The optional lines are comments; turned on, they still load.
+        text = (Path(__file__).parent.parent / "examples/config.toml").read_text()
+        on = "\n".join(l[2:] if l.startswith(("# hide", "# keep", "# local")) else l for l in text.splitlines())
+        self.assertIn("\nhide = ", on)
+        self.config.write_text(on)
+        p = self.ft("bar", "--format", "json", "--timeout", "1s", ok=None)
+        self.assertNotIn("config", p.stdout + p.stderr)
+
     def test_example_config_is_valid(self):
         from _binary import ROOT
         p = self.ft("bar", "--format", "json", "--timeout", "2s", FIRETOWER_CONFIG=str(ROOT / "examples/config.toml"))
