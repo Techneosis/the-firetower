@@ -211,7 +211,19 @@ timer:
 - [SwiftBar](https://swiftbar.app) or xbar on macOS: `examples/firetower.30s.sh`
   puts binoculars in the menu bar, coloured by the worst state, with a menu
   of every lookout.
-- Waybar, and so Omarchy: `examples/waybar.jsonc` and `waybar.css`.
+- Waybar: `examples/waybar.jsonc` and `waybar.css`.
+- Omarchy 4, whose bar is its own Quickshell shell: `examples/omarchy/firetower`
+  is a bar plugin. Binoculars, lit with the count, red on fire; a click opens
+  a panel with the summary, every lookout that isn't clear (smoke or fire on
+  this machine's own can be marked seen there), sources out of contact, and
+  the board, which it focuses if it's already open. Link the folder in and
+  turn it on:
+  `ln -s "$PWD/examples/omarchy/firetower" ~/.config/omarchy/plugins/firetower`,
+  then `omarchy-shell shell rescanPlugins` and
+  `omarchy-shell shell setPluginEnabled firetower true`. Fire is the theme's
+  red and smoke its yellow; a theme can choose its own in a `firetower.toml`
+  (`fire`, `smoke`, `no_word`, as `"#rrggbb"`), and for a built-in theme that
+  file goes in `~/.config/omarchy/themes/<theme>/`.
 - tmux, polybar, anything: `firetower bar` prints `1 fire · 2 smoke · 9 clear`
   (or `all clear (12)`, or `no lookouts`).
 

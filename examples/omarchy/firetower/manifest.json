@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "firetower",
+  "name": "Firetower",
+  "version": "0.1.0",
+  "author": "The Firetower",
+  "license": "MIT",
+  "description": "The Firetower in the bar: binoculars, dim when every watch is clear, lit with a count when something needs a look, red on fire. Click for a panel with the board's summary; right click opens the board.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Firetower",
+    "description": "Background watches from the Firetower (firetower bar). Click for the panel, right click for the board.",
+    "category": "Monitoring",
+    "aliases": ["firetower"],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

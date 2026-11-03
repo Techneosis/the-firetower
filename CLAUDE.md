@@ -19,7 +19,7 @@ Claude Code setup.
 | `cmd/firetower/sources.go` | the post both boards read: this machine and the sources |
 | `cmd/firetower/bar.go`, `board.go`, `ui/` | the boards |
 | `agents/` | what ships to users' Claude Code: the skill and the CLAUDE.md snippet |
-| `examples/` | SwiftBar, Waybar, board-at-login, a config |
+| `examples/` | SwiftBar, Waybar, the Omarchy bar plugin (`omarchy/firetower`), board-at-login, a config |
 | `install.sh` | three modes: piped fetches a release, a checkout builds, an unpacked release installs its binary |
 | `scripts/package.sh` | builds and packages every release target, plus `SHA256SUMS` and `VERSION` (what `upgrade --check` reads) |
 | `tests/` | `python3 -m unittest discover -s tests`: run before every commit (it builds the binary) |
