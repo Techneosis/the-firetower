@@ -16,8 +16,8 @@ import qs.Ui
 // arrives on the feed for that, so a slow timer re-reads too. The feed is
 // restarted if it ever exits.
 //
-// Quiet by design: hidden with no lookouts, dim when all is clear, lit with a
-// count when something needs a look, red on fire.
+// Hidden with no lookouts, the bar's white when all is clear, a count when
+// something needs a look, yellow on smoke, red on fire.
 //
 // Click opens the panel: the summary, every lookout that isn't clear (worst
 // first), sources out of contact, and a row that opens the board. A lookout's
@@ -26,7 +26,7 @@ import qs.Ui
 // which routes them to their machine). Right click opens the board directly.
 //
 // Colors come from the bar: fire is its alert color (the
-// theme's red), smoke its plain foreground. A theme can set its own in a
+// theme's red), smoke the theme's yellow. A theme can set its own in a
 // firetower.toml beside its colors.toml:
 //
 //   fire = "#fd6883"
@@ -46,10 +46,11 @@ Panel {
   readonly property color dim: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
-  // The theme's own firetower.toml, over the bar's colors.
+  // The theme's palette, then the theme's own firetower.toml over it.
+  property var palette: ({})
   property var overrides: ({})
   readonly property color fireColor: overrides.fire || (bar ? bar.urgent : Color.urgent)
-  readonly property color smokeColor: overrides.smoke || foreground
+  readonly property color smokeColor: overrides.smoke || palette.yellow || "#e0b040"
   readonly property color noWordColor: overrides.no_word || foreground
 
   property string worst: "none"
@@ -182,6 +183,14 @@ Panel {
   }
 
   FileView {
+    path: root.themeDir + "/colors.toml"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.palette = root.colorsIn(text())
+  }
+
+  FileView {
     path: root.themeDir + "/firetower.toml"
     watchChanges: true
     printErrors: false
@@ -240,7 +249,6 @@ Panel {
     text: "󰂥" + (root.needsLook ? " " + root.attention : "")
     active: root.fire || root.smoke
     activeColor: root.fire ? root.fireColor : root.smokeColor
-    dimmed: !root.needsLook
 
     tooltipText: root.opened ? "" : root.tooltip
 
@@ -304,7 +312,7 @@ Panel {
             iconComponent: Component {
               Text {
                 text: "󰂥"
-                color: root.fire ? root.fireColor : (root.smoke ? root.smokeColor : (root.needsLook ? root.foreground : root.dim))
+                color: root.fire ? root.fireColor : (root.smoke ? root.smokeColor : root.foreground)
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
               }

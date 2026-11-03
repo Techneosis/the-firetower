@@ -213,7 +213,8 @@ timer:
   of every lookout.
 - Waybar: `examples/waybar.jsonc` and `waybar.css`.
 - Omarchy 4, whose bar is its own Quickshell shell: `examples/omarchy/firetower`
-  is a bar plugin. Binoculars, lit with the count, red on fire; a click opens
+  is a bar plugin. Binoculars, with the count when something needs a look,
+  yellow on smoke and red on fire; a click opens
   a panel with the summary, every lookout that isn't clear (smoke or fire on
   this machine's own can be marked seen there), sources out of contact, and
   the board, which it focuses if it's already open. Link the folder in and
@@ -221,7 +222,7 @@ timer:
   `ln -s "$PWD/examples/omarchy/firetower" ~/.config/omarchy/plugins/firetower`,
   then `omarchy-shell shell rescanPlugins` and
   `omarchy-shell shell setPluginEnabled firetower true`. Fire is the theme's
-  red and smoke is the bar's own white; a theme can choose its own in a `firetower.toml`
+  red and smoke its yellow; a theme can choose its own in a `firetower.toml`
   (`fire`, `smoke`, `no_word`, as `"#rrggbb"`), and for a built-in theme that
   file goes in `~/.config/omarchy/themes/<theme>/`.
 - tmux, polybar, anything: `firetower bar` prints `1 fire · 2 smoke · 9 clear`
