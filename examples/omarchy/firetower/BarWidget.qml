@@ -25,8 +25,8 @@ import qs.Ui
 // marked seen from the panel (a source's lookouts are seen on the board,
 // which routes them to their machine). Right click opens the board directly.
 //
-// Colors come from the Omarchy theme: fire is the bar's alert color (the
-// theme's red), smoke the theme's yellow. A theme can set its own in a
+// Colors come from the bar: fire is its alert color (the
+// theme's red), smoke its plain foreground. A theme can set its own in a
 // firetower.toml beside its colors.toml:
 //
 //   fire = "#fd6883"
@@ -46,11 +46,10 @@ Panel {
   readonly property color dim: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
-  // The theme's palette, then the theme's own firetower.toml over it.
-  property var palette: ({})
+  // The theme's own firetower.toml, over the bar's colors.
   property var overrides: ({})
   readonly property color fireColor: overrides.fire || (bar ? bar.urgent : Color.urgent)
-  readonly property color smokeColor: overrides.smoke || palette.yellow || "#e0b040"
+  readonly property color smokeColor: overrides.smoke || foreground
   readonly property color noWordColor: overrides.no_word || foreground
 
   property string worst: "none"
@@ -180,14 +179,6 @@ Panel {
     cursor = 0
     panelFlick.contentY = 0
     refresh()
-  }
-
-  FileView {
-    path: root.themeDir + "/colors.toml"
-    watchChanges: true
-    printErrors: false
-    onFileChanged: reload()
-    onLoaded: root.palette = root.colorsIn(text())
   }
 
   FileView {

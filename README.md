@@ -221,7 +221,7 @@ timer:
   `ln -s "$PWD/examples/omarchy/firetower" ~/.config/omarchy/plugins/firetower`,
   then `omarchy-shell shell rescanPlugins` and
   `omarchy-shell shell setPluginEnabled firetower true`. Fire is the theme's
-  red and smoke its yellow; a theme can choose its own in a `firetower.toml`
+  red and smoke is the bar's own white; a theme can choose its own in a `firetower.toml`
   (`fire`, `smoke`, `no_word`, as `"#rrggbb"`), and for a built-in theme that
   file goes in `~/.config/omarchy/themes/<theme>/`.
 - tmux, polybar, anything: `firetower bar` prints `1 fire · 2 smoke · 9 clear`
