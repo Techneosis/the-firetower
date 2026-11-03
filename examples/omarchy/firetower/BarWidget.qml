@@ -245,8 +245,14 @@ Panel {
     anchors.fill: parent
     bar: root.bar
 
-    // nf-md-binoculars, the glyph the SwiftBar plugin uses.
-    text: "󰂥" + (root.needsLook ? " " + root.attention : "")
+    // Drawn here rather than as the button's text: the button centers the
+    // font's line box, and the binoculars are a short glyph that sits high
+    // in it. The glyph is centered on its own ink; the count stays on the
+    // line, level with the other widgets' labels.
+    text: ""
+    labelVisible: false
+    hasVisualContent: true
+    fixedWidth: icon.implicitWidth + button.scaledHorizontalMargin * 2
     active: root.fire || root.smoke
     activeColor: root.fire ? root.fireColor : root.smokeColor
 
@@ -255,6 +261,49 @@ Panel {
     onPressed: function(b) {
       if (b === Qt.RightButton) root.openBoard()
       else root.toggle()
+    }
+
+    Row {
+      id: icon
+      anchors.centerIn: parent
+      spacing: Style.space(4)
+      readonly property color ink: button.active ? button.activeColor : button.foreground
+
+      Item {
+        width: glyph.implicitWidth
+        height: glyph.implicitHeight
+
+        TextMetrics {
+          id: glyphInk
+          font: glyph.font
+          text: glyph.text
+        }
+
+        Text {
+          id: glyph
+          textFormat: Text.PlainText
+          // nf-md-binoculars, the glyph the SwiftBar plugin uses.
+          text: "󰂥"
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.verticalCenterOffset: implicitHeight / 2
+            - (baselineOffset + glyphInk.tightBoundingRect.y + glyphInk.tightBoundingRect.height / 2)
+          color: icon.ink
+          font.family: button.fontFamily
+          font.pixelSize: button.fontSize
+          renderType: Text.NativeRendering
+        }
+      }
+
+      Text {
+        visible: root.needsLook
+        textFormat: Text.PlainText
+        anchors.verticalCenter: parent.verticalCenter
+        text: String(root.attention)
+        color: icon.ink
+        font.family: button.fontFamily
+        font.pixelSize: button.fontSize
+        renderType: Text.NativeRendering
+      }
     }
   }
 
